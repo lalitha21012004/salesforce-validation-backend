@@ -45,13 +45,14 @@ app.get('/oauth/callback', async (req, res) => {
     try {
         await conn.authorize(code);
         
-        // Store session info
-        req.session.accessToken = conn.accessToken;
-        req.session.instanceUrl = conn.instanceUrl;
-
         console.log('User authorized successfully');
-        // Redirect to your frontend app (assuming port 5173)
-        res.redirect('https://salesforce-validation-manager-rho.vercel.app?auth=success');
+        
+        // Pass tokens transparently via URL query parameters directly to the frontend
+        const targetUrl = `https://salesforce-validation-manager-rho.vercel.app/?auth=success` +
+                          `&token=${encodeURIComponent(conn.accessToken)}` +
+                          `&instance=${encodeURIComponent(conn.instanceUrl)}`;
+        
+        res.redirect(targetUrl);
     } catch (err) {
         console.error('Auth Error:', err);
         res.status(500).send('Authentication failed');
@@ -61,26 +62,58 @@ app.get('/oauth/callback', async (req, res) => {
 // --- API Routes ---
 
 // Fetch Validation Rules (Account Object only)
+// Fetch Validation Rules (Account Object only)
 app.get('/api/rules', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).json({ message: 'Session expired, login again' });
+    const accessToken = req.headers['x-access-token'];
+    const instanceUrl = req.headers['x-instance-url'];
+
+    if (!accessToken || !instanceUrl) {
+        return res.status(401).json({ message: 'Session missing credentials, login again' });
     }
 
     const conn = new jsforce.Connection({
-        instanceUrl: req.session.instanceUrl,
-        accessToken: req.session.accessToken
+        instanceUrl: instanceUrl,
+        accessToken: accessToken
     });
 
     try {
-        // Querying via Tooling API as required by assessment
         const query = "SELECT Id, ValidationName, Active, Description FROM ValidationRule WHERE EntityDefinition.DeveloperName = 'Account'";
         const result = await conn.tooling.query(query);
-        
-        console.log(`Fetched ${result.records.length} validation rules`);
         res.json(result.records);
     } catch (err) {
         console.error('Fetch Error:', err);
         res.status(500).json({ error: 'Failed to fetch metadata' });
+    }
+});
+
+// Toggle Rule Status (Enable/Disable)
+app.post('/api/rules/toggle', async (req, res) => {
+    const { ruleId, status } = req.body;
+    const accessToken = req.headers['x-access-token'];
+    const instanceUrl = req.headers['x-instance-url'];
+
+    if (!accessToken || !instanceUrl) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const conn = new jsforce.Connection({
+        instanceUrl: instanceUrl,
+        accessToken: accessToken
+    });
+
+    try {
+        const rule = await conn.tooling.sobject('ValidationRule').retrieve(ruleId);
+        await conn.tooling.sobject('ValidationRule').update({
+            Id: ruleId,
+            Metadata: {
+                ...rule.Metadata,
+                active: status
+            }
+        });
+        res.json({ success: true, newStatus: status });
+    } catch (err) {
+        console.error('Update Error:', err);
+        res.status(500).json({ error: 'Failed to update rule', details: err.message });
     }
 });
 
