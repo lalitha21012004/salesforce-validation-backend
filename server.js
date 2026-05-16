@@ -7,7 +7,7 @@ require('dotenv').config();
 const app = express();
 
 // Basic middleware setup
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: 'https://salesforce-validation-manager-rho.vercel.app', credentials: true }));
 app.use(express.json());
 app.use(session({
     name: 'sf-session',
@@ -49,7 +49,7 @@ app.get('/oauth/callback', async (req, res) => {
 
         console.log('User authorized successfully');
         // Redirect to your frontend app (assuming port 5173)
-        res.redirect('http://localhost:5173?auth=success');
+        res.redirect('https://salesforce-validation-manager-rho.vercel.app?auth=success');
     } catch (err) {
         console.error('Auth Error:', err);
         res.status(500).send('Authentication failed');
