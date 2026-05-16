@@ -11,8 +11,10 @@ app.use(cors({ origin: 'https://salesforce-validation-manager-rho.vercel.app', c
 app.use(express.json());
 app.use(session({
     name: 'sf-session',
-    keys: ['secret-key-123'], // Simple key for dev purposes
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    keys: ['secret-key-123'], 
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    secure: true,                // Required for cross-site cookies over HTTPS
+    sameSite: 'none'             // Allows cookie to be sent from Render to Vercel
 }));
 
 // OAuth2 Configuration using .env variables
