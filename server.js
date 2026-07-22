@@ -8,7 +8,7 @@ const app = express();
 
 // Middleware
 app.use(cors({ 
-  origin: 'https://salesforce-validation-manager-rho.vercel.app', 
+  origin: 'https://salesforce-validation-manager-el4t2rtcn.vercel.app', 
   credentials: true 
 }));
 app.use(express.json());
@@ -51,7 +51,7 @@ app.get('/oauth/callback', async (req, res) => {
     console.log('User authorized successfully');
     
     // Redirect back to Vercel frontend with access details in query parameters
-    const targetUrl = `https://salesforce-validation-manager-rho.vercel.app/?auth=success` +
+    const targetUrl = `https://salesforce-validation-manager-el4t2rtcn.vercel.app/?auth=success` +
                       `&token=${encodeURIComponent(conn.accessToken)}` +
                       `&instance=${encodeURIComponent(conn.instanceUrl)}`;
     
