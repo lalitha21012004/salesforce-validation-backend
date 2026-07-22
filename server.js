@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware setup
+// Middleware
 app.use(cors({ 
   origin: 'https://salesforce-validation-manager-rho.vercel.app', 
   credentials: true 
@@ -18,26 +18,26 @@ app.use(session({
   keys: ['secret-key-123'], 
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
   secure: true,                // Required for cross-site cookies over HTTPS
-  sameSite: 'none'             // Allows cross-domain cookies
+  sameSite: 'none'             // Allows cookie sharing across domains
 }));
 
-// OAuth2 Configuration using environment variables
+// OAuth2 Configuration using Environment Variables
 const oauth2 = new jsforce.OAuth2({
   clientId: process.env.SF_CONSUMER_KEY,
   clientSecret: process.env.SF_CONSUMER_SECRET,
-  redirectUri: process.env.SF_CALLBACK_URL
+  redirectUri: process.env.SF_CALLBACK_URL || 'https://sf-validation-manager-backend.onrender.com/oauth/callback'
 });
 
 // --- Auth Routes ---
 
-// 1. Redirect to Salesforce Authorization Page
+// 1. Initiate Salesforce OAuth
 app.get('/auth/login', (req, res) => {
   console.log('Redirecting to Salesforce for Auth...');
   const authUrl = oauth2.getAuthorizationUrl({ scope: 'api refresh_token offline_access' });
   res.redirect(authUrl);
 });
 
-// 2. Salesforce OAuth Callback Endpoint
+// 2. OAuth Callback
 app.get('/oauth/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) {
@@ -50,7 +50,7 @@ app.get('/oauth/callback', async (req, res) => {
     await conn.authorize(code);
     console.log('User authorized successfully');
     
-    // Pass tokens to the React frontend via URL parameters
+    // Redirect back to Vercel frontend with access details in query parameters
     const targetUrl = `https://salesforce-validation-manager-rho.vercel.app/?auth=success` +
                       `&token=${encodeURIComponent(conn.accessToken)}` +
                       `&instance=${encodeURIComponent(conn.instanceUrl)}`;
@@ -64,7 +64,7 @@ app.get('/oauth/callback', async (req, res) => {
 
 // --- API Routes ---
 
-// 3. Fetch Validation Rules for Account Object
+// 3. Get Account Validation Rules
 app.get('/api/rules', async (req, res) => {
   const accessToken = req.headers['x-access-token'];
   const instanceUrl = req.headers['x-instance-url'];
@@ -88,7 +88,7 @@ app.get('/api/rules', async (req, res) => {
   }
 });
 
-// 4. Toggle Validation Rule Status (Enable / Disable)
+// 4. Toggle Rule Active Status
 app.post('/api/rules/toggle', async (req, res) => {
   const { ruleId, status } = req.body;
   const accessToken = req.headers['x-access-token'];
@@ -120,7 +120,7 @@ app.post('/api/rules/toggle', async (req, res) => {
   }
 });
 
-// Logout Route
+// Logout
 app.get('/auth/logout', (req, res) => {
   req.session = null;
   res.json({ success: true });
@@ -128,5 +128,5 @@ app.get('/auth/logout', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
